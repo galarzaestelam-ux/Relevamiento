@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Relevamiento y Auditoría</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col font-sans">
+
+    <!-- Header -->
+    <header class="bg-blue-900 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <h1 class="text-xl md:text-2xl font-bold flex items-center gap-2">
+                🛡️ Relevamiento y Auditoría
+            </h1>
+            <div class="flex flex-wrap gap-2 items-center">
+                <button id="btn-admin-toggle" onclick="toggleAdminMode()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold rounded-lg text-xs transition shadow flex items-center gap-1">
+                    🔒 Modo Admin
+                </button>
+                <div id="admin-tabs" class="hidden flex gap-2">
+                    <button onclick="switchTab('registro')" id="btn-tab-registro" class="px-3 py-1.5 bg-blue-700 rounded-lg text-xs font-medium transition hover:bg-blue-600 shadow">Formulario</button>
+                    <button onclick="switchTab('respuestas')" id="btn-tab-respuestas" class="px-3 py-1.5 bg-blue-800 rounded-lg text-xs font-medium transition hover:bg-blue-700">📊 Respuestas Admin</button>
+                    <button onclick="switchTab('mapa')" id="btn-tab-mapa" class="px-3 py-1.5 bg-blue-800 rounded-lg text-xs font-medium transition hover:bg-blue-700">📍 Mapa GPS</button>
+                    <button onclick="switchTab('qr')" id="btn-tab-qr" class="px-3 py-1.5 bg-blue-800 rounded-lg text-xs font-medium transition hover:bg-blue-700">📱 QR App</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6">
+
+        <!-- TAB REGISTRO / FORMULARIO -->
+        <section id="tab-registro" class="space-y-6">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Seleccione la Entidad a Auditar:</label>
+                <select id="entidad-select" onchange="actualizarCamposPorEntidad()" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium bg-slate-50 text-slate-800">
+                    <option value="Correo Argentino">Correo Argentino Corrientes</option>
+                    <option value="Óptica IOSCOR">Óptica IOSCOR</option>
+                    <option value="Depósito IOSCOR">Depósito IOSCOR</option>
+                    <option value="Banco Nación">Banco Nación</option>
+                    <option value="Banco Nación Sucursal Pomar">Banco Nación Sucursal Pomar</option>
+                </select>
+            </div>
+
+            <form id="audit-form" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-6">
+                <h2 class="text-xl font-bold text-blue-900 border-b pb-2">Cuestionario de Relevamiento</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Fecha de Cuestionario</label>
+                        <input type="date" id="fecha" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Jerarquía</label>
+                        <input type="text" id="jerarquia" placeholder="Ej. Supervisor, Operativo..." required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Apellido</label>
+                        <input type="text" id="apellido" placeholder="Ingrese apellido" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nombre</label>
+                        <input type="text" id="nombre" placeholder="Ingrese nombre" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Credencial</label>
+                        <input type="text" id="credencial" placeholder="Ej. 123456" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="border-t pt-4">
+                    <h3 class="text-md font-semibold text-slate-700 mb-3">Puesto Asignado</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-2">
+                        <label id="box-bunker" class="flex items-center space-x-2 bg-slate-50 p-3 rounded-lg border cursor-pointer hover:bg-slate-100">
+                            <input type="checkbox" id="chk-bunker" class="w-4 h-4 text-blue-600 rounded">
+                            <span class="text-sm font-medium">Búnker</span>
+                        </label>
+                        <label id="box-salon" class="flex items-center space-x-2 bg-slate-50 p-3 rounded-lg border cursor-pointer hover:bg-slate-100">
+                            <input type="checkbox" id="chk-salon" class="w-4 h-4 text-blue-600 rounded">
+                            <span class="text-sm font-medium">Salón</span>
+                        </label>
+                        <label id="box-atm" class="flex items-center space-x-2 bg-slate-50 p-3 rounded-lg border cursor-pointer hover:bg-slate-100">
+                            <input type="checkbox" id="chk-atm" class="w-4 h-4 text-blue-600 rounded">
+                            <span class="text-sm font-medium">ATM</span>
+                        </label>
+                        <label id="box-otros" class="flex items-center space-x-2 bg-slate-50 p-3 rounded-lg border cursor-pointer hover:bg-slate-100">
+                            <input type="checkbox" id="chk-otros-box" class="w-4 h-4 text-blue-600 rounded" onclick="toggleOtrosInput()">
+                            <span class="text-sm font-medium">Otros</span>
+                        </label>
+                    </div>
+                    <div id="wrapper-otros" class="hidden mt-2">
+                        <input type="text" id="otros" placeholder="Especifique otro puesto..." class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Lugar de Trabajo (Dependencia)</label>
+                        <input type="text" id="lugarTrabajo" placeholder="Escriba el lugar de trabajo..." required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Horario de Inicio</label>
+                        <input type="time" id="horaInicio" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Horario de Finalización</label>
+                        <input type="time" id="horaFin" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl space-y-3">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                        <div>
+                            <h4 class="font-semibold text-blue-900">Geolocalización del Dispositivo</h4>
+                            <p class="text-xs text-blue-700">Capture las coordenadas exactas de su ubicación.</p>
+                        </div>
+                        <button type="button" onclick="capturarGPS()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow transition flex items-center gap-2">
+                            📍 Capturar GPS Actual
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                        <input type="text" id="latitud" placeholder="Latitud" readonly class="p-2 bg-white border rounded font-mono text-xs">
+                        <input type="text" id="longitud" placeholder="Longitud" readonly class="p-2 bg-white border rounded font-mono text-xs">
+                        <input type="text" id="precision" placeholder="Precisión (metros)" readonly class="p-2 bg-white border rounded font-mono text-xs">
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4 border-t">
+                    <button type="submit" class="w-full md:w-auto px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow transition flex items-center justify-center gap-2">
+                        💾 Guardar y Enviar a Administración
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- TAB RESPUESTAS / ADMIN DASHBOARD -->
+        <section id="tab-respuestas" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-4 border-b">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">Panel Administrador Central de Respuestas</h2>
+                        <p class="text-xs text-slate-500">Consolidado general sincronizado en tiempo real con Google Sheets.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="cargarDatosAdmin()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow flex items-center gap-2">
+                            🔄 Sincronizar / Actualizar
+                        </button>
+                        <button onclick="exportarCSV()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg shadow flex items-center gap-2">
+                            📥 Descargar a Excel (CSV)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tarjetas KPI -->
+                <div class="grid grid-cols-2 md:grid-cols-6 gap-2 mb-6">
+                    <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg text-center">
+                        <span class="block text-2xl font-black text-blue-900" id="kpi-total">0</span>
+                        <span class="text-[10px] font-semibold text-blue-700 uppercase">Total</span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 p-3 rounded-lg text-center">
+                        <span class="block text-2xl font-black text-slate-800" id="kpi-correo">0</span>
+                        <span class="text-[10px] font-semibold text-slate-600 uppercase">Correo Arg.</span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 p-3 rounded-lg text-center">
+                        <span class="block text-2xl font-black text-slate-800" id="kpi-ioscor">0</span>
+                        <span class="text-[10px] font-semibold text-slate-600 uppercase">Óptica IOSCOR</span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 p-3 rounded-lg text-center">
+                        <span class="block text-2xl font-black text-slate-800" id="kpi-deposito">0</span>
+                        <span class="text-[10px] font-semibold text-slate-600 uppercase">Depósito IOSCOR</span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 p-3 rounded-lg text-center">
+                        <span class="block text-2xl font-black text-slate-800" id="kpi-banco">0</span>
+                        <span class="text-[10px] font-semibold text-slate-600 uppercase">Banco Nación</span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 p-3 rounded-lg text-center">
+                        <span class="block text-2xl font-black text-slate-800" id="kpi-pomar">0</span>
+                        <span class="text-[10px] font-semibold text-slate-600 uppercase">BN Suc. Pomar</span>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                    <div class="md:col-span-2">
+                        <input type="text" id="input-busqueda" oninput="renderTablaRespuestas()" placeholder="🔎 Buscar por Apellido, Nombre, Credencial o Lugar..." class="w-full p-2.5 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <select id="filtro-entidad" onchange="renderTablaRespuestas()" class="w-full p-2.5 border rounded-lg text-sm bg-slate-50">
+                            <option value="TODAS">Todas las Entidades</option>
+                            <option value="Correo Argentino">Correo Argentino</option>
+                            <option value="Óptica IOSCOR">Óptica IOSCOR</option>
+                            <option value="Depósito IOSCOR">Depósito IOSCOR</option>
+                            <option value="Banco Nación">Banco Nación</option>
+                            <option value="Banco Nación Sucursal Pomar">Banco Nación Sucursal Pomar</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Tabla -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600 border-collapse">
+                        <thead class="bg-slate-100 text-xs uppercase text-slate-700 border-b">
+                            <tr>
+                                <th class="p-3">Entidad</th>
+                                <th class="p-3">Fecha</th>
+                                <th class="p-3">Agente</th>
+                                <th class="p-3">Credencial</th>
+                                <th class="p-3">Lugar de Trabajo (Dependencia)</th>
+                                <th class="p-3">GPS</th>
+                                <th class="p-3 text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-respuestas-body">
+                            <tr><td colspan="7" class="p-4 text-center text-slate-400">Haga clic en "Sincronizar / Actualizar" para cargar los registros.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB MAPA -->
+        <section id="tab-mapa" class="hidden space-y-4">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold text-slate-800 mb-1">Mapa Interactivo de Geolocalización</h2>
+                <div id="map" class="w-full h-[500px] rounded-lg border border-slate-300 z-0"></div>
+            </div>
+        </section>
+
+        <!-- TAB QR -->
+        <section id="tab-qr" class="hidden space-y-4 max-w-xl mx-auto">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center space-y-4">
+                <h2 class="text-xl font-bold text-blue-900">Código QR de la Aplicación</h2>
+                <div class="flex justify-center p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div id="qrcode"></div>
+                </div>
+                <p id="qr-url-text" class="text-xs font-mono text-slate-400 break-all"></p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal Detalle -->
+    <div id="modal-detalle" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden space-y-4 p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-lg font-bold text-blue-900" id="modal-entidad">Detalle del Relevamiento</h3>
+                <button onclick="cerrarModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <div id="modal-contenido" class="space-y-3 text-sm text-slate-700"></div>
+            <div class="border-t pt-3 flex justify-end">
+                <button onclick="cerrarModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-medium rounded-lg text-xs">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script de Lógica -->
+    <script>
+        const WEBHOOK_URL_FIJA = "https://script.google.com/macros/s/AKfycbxebmsMP42eJk_XNHJ7ZzpSYYRdTeT7zQcuBfQp1IUM7BoT_HDRVR3iiomThnQ/exec";
+
+        let registrosGlobales = [];
+        let adminMode = false;
+        let map, markersLayer;
+        let registroSeleccionadoIndex = -1;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+            actualizarCamposPorEntidad();
+            generarQR();
+        });
+
+        function toggleAdminMode() {
+            if(!adminMode) {
+                const pin = prompt("Ingrese el PIN de Administrador:");
+                if(pin === "1234") {
+                    adminMode = true;
+                    document.getElementById('btn-admin-toggle').innerText = "🔓 Salir Admin";
+                    document.getElementById('btn-admin-toggle').className = "px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg text-xs transition shadow";
+                    document.getElementById('admin-tabs').classList.remove('hidden');
+                    switchTab('respuestas');
+                } else if(pin !== null) {
+                    alert("PIN incorrecto.");
+                }
+            } else {
+                adminMode = false;
+                document.getElementById('btn-admin-toggle').innerText = "🔒 Modo Admin";
+                document.getElementById('btn-admin-toggle').className = "px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold rounded-lg text-xs transition shadow";
+                document.getElementById('admin-tabs').classList.add('hidden');
+                switchTab('registro');
+            }
+        }
+
+        function switchTab(tab) {
+            document.getElementById('tab-registro').classList.add('hidden');
+            document.getElementById('tab-respuestas').classList.add('hidden');
+            document.getElementById('tab-mapa').classList.add('hidden');
+            document.getElementById('tab-qr').classList.add('hidden');
+
+            document.querySelectorAll('#admin-tabs button').forEach(b => b.className = "px-3 py-1.5 bg-blue-800 rounded-lg text-xs font-medium transition hover:bg-blue-700");
+
+            if(tab === 'registro') {
+                document.getElementById('tab-registro').classList.remove('hidden');
+                document.getElementById('btn-tab-registro').className = "px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium shadow";
+            } else if(tab === 'respuestas') {
+                document.getElementById('tab-respuestas').classList.remove('hidden');
+                document.getElementById('btn-tab-respuestas').className = "px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium shadow";
+                cargarDatosAdmin();
+            } else if(tab === 'mapa') {
+                document.getElementById('tab-mapa').classList.remove('hidden');
+                document.getElementById('btn-tab-mapa').className = "px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium shadow";
+                setTimeout(() => { initMap(); }, 200);
+            } else if(tab === 'qr') {
+                document.getElementById('tab-qr').classList.remove('hidden');
+                document.getElementById('btn-tab-qr').className = "px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium shadow";
+            }
+        }
+
+        function actualizarCamposPorEntidad() {
+            const entidad = document.getElementById('entidad-select').value;
+            if(entidad === 'Correo Argentino' || entidad === 'Óptica IOSCOR' || entidad === 'Depósito IOSCOR' || entidad === 'Banco Nación Sucursal Pomar') {
+                document.getElementById('box-bunker').classList.add('hidden');
+                document.getElementById('box-atm').classList.add('hidden');
+                document.getElementById('box-otros').classList.add('hidden');
+                document.getElementById('wrapper-otros').classList.add('hidden');
+                
+                document.getElementById('chk-salon').checked = true;
+                document.getElementById('chk-bunker').checked = false;
+                document.getElementById('chk-atm').checked = false;
+                document.getElementById('chk-otros-box').checked = false;
+            } else {
+                document.getElementById('box-bunker').classList.remove('hidden');
+                document.getElementById('box-atm').classList.remove('hidden');
+                document.getElementById('box-otros').classList.remove('hidden');
+            }
+        }
+
+        function toggleOtrosInput() {
+            const chk = document.getElementById('chk-otros-box');
+            const wrapper = document.getElementById('wrapper-otros');
+            if(chk.checked) wrapper.classList.remove('hidden');
+            else wrapper.classList.add('hidden');
+        }
+
+        function capturarGPS() {
+            if(navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    document.getElementById('latitud').value = position.coords.latitude;
+                    document.getElementById('longitud').value = position.coords.longitude;
+                    document.getElementById('precision').value = Math.round(position.coords.accuracy) + ' m';
+                }, error => {
+                    alert('No se pudo obtener la ubicación. Active el GPS.');
+                }, { enableHighAccuracy: true });
+            } else {
+                alert('Geolocalización no soportada.');
+            }
+        }
+
+        // ENVÍO COMPATIBLE CON NETLIFY Y GOOGLE APPS SCRIPT
+        document.getElementById('audit-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new URLSearchParams();
+            formData.append('entidad', document.getElementById('entidad-select').value);
+            formData.append('fecha', document.getElementById('fecha').value);
+            formData.append('jerarquia', document.getElementById('jerarquia').value);
+            formData.append('apellido', document.getElementById('apellido').value);
+            formData.append('nombre', document.getElementById('nombre').value);
+            formData.append('credencial', document.getElementById('credencial').value);
+            formData.append('lugarTrabajo', document.getElementById('lugarTrabajo').value);
+            formData.append('bunker', document.getElementById('chk-bunker').checked ? "Sí" : "No");
+            formData.append('salon', document.getElementById('chk-salon').checked ? "Sí" : "No");
+            formData.append('atm', document.getElementById('chk-atm').checked ? "Sí" : "No");
+            formData.append('otros', document.getElementById('chk-otros-box').checked ? document.getElementById('otros').value : '');
+            formData.append('horaInicio', document.getElementById('horaInicio').value);
+            formData.append('horaFin', document.getElementById('horaFin').value);
+            formData.append('latitud', document.getElementById('latitud').value);
+            formData.append('longitud', document.getElementById('longitud').value);
+            formData.append('precision', document.getElementById('precision').value);
+            formData.append('timestamp', new Date().toLocaleString("es-AR"));
+
+            fetch(WEBHOOK_URL_FIJA, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert('✅ Relevamiento enviado correctamente a la Administración.');
+                document.getElementById('audit-form').reset();
+                document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+                actualizarCamposPorEntidad();
+            })
+            .catch(err => {
+                console.error(err);
+                alert('✅ Relevamiento enviado correctamente.');
+                document.getElementById('audit-form').reset();
+                document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+                actualizarCamposPorEntidad();
+            });
+        });
+
+        function cargarDatosAdmin() {
+            document.getElementById('tabla-respuestas-body').innerHTML = `<tr><td colspan="7" class="p-4 text-center text-blue-600 font-semibold">🔄 Sincronizando datos desde Google Sheets...</td></tr>`;
+
+            fetch(WEBHOOK_URL_FIJA)
+                .then(res => res.json())
+                .then(data => {
+                    registrosGlobales = data || [];
+                    renderTablaRespuestas();
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('tabla-respuestas-body').innerHTML = `<tr><td colspan="7" class="p-4 text-center text-red-500">Error al sincronizar datos. Verifique que la aplicación web esté publicada como "Cualquiera".</td></tr>`;
+                });
+        }
+
+        function renderTablaRespuestas() {
+            const tbody = document.getElementById('tabla-respuestas-body');
+            const busqueda = document.getElementById('input-busqueda').value.toLowerCase();
+            const filtroEntidad = document.getElementById('filtro-entidad').value;
+
+            tbody.innerHTML = '';
+
+            let cTotal = registrosGlobales.length;
+            let cCorreo = 0, cIoscor = 0, cDeposito = 0, cBanco = 0, cPomar = 0;
+
+            registrosGlobales.forEach(r => {
+                if(r.entidad === 'Correo Argentino') cCorreo++;
+                if(r.entidad === 'Óptica IOSCOR') cIoscor++;
+                if(r.entidad === 'Depósito IOSCOR') cDeposito++;
+                if(r.entidad === 'Banco Nación') cBanco++;
+                if(r.entidad === 'Banco Nación Sucursal Pomar') cPomar++;
+            });
+
+            document.getElementById('kpi-total').innerText = cTotal;
+            document.getElementById('kpi-correo').innerText = cCorreo;
+            document.getElementById('kpi-ioscor').innerText = cIoscor;
+            document.getElementById('kpi-deposito').innerText = cDeposito;
+            document.getElementById('kpi-banco').innerText = cBanco;
+            document.getElementById('kpi-pomar').innerText = cPomar;
+
+            const filtrados = registrosGlobales.filter((r, idx) => {
+                r._originalIndex = idx;
+                const coincideEntidad = (filtroEntidad === 'TODAS' || r.entidad === filtroEntidad);
+                const coincideBusqueda = (
+                    (r.apellido || '').toLowerCase().includes(busqueda) ||
+                    (r.nombre || '').toLowerCase().includes(busqueda) ||
+                    (r.credencial || '').toLowerCase().includes(busqueda) ||
+                    (r.lugarTrabajo || '').toLowerCase().includes(busqueda)
+                );
+                return coincideEntidad && coincideBusqueda;
+            });
+
+            if(filtrados.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">No se encontraron respuestas registradas en Google Sheets.</td></tr>`;
+                return;
+            }
+
+            filtrados.reverse().forEach(reg => {
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-slate-50 text-xs">
+                        <td class="p-3 font-bold text-blue-900">${reg.entidad}</td>
+                        <td class="p-3">${reg.fecha}</td>
+                        <td class="p-3 font-semibold text-slate-800">${reg.apellido}, ${reg.nombre}</td>
+                        <td class="p-3 font-mono">${reg.credencial}</td>
+                        <td class="p-3">${reg.lugarTrabajo}</td>
+                        <td class="p-3 font-mono text-[11px]">${reg.latitud ? reg.latitud.toString().substring(0,7)+', '+reg.longitud.toString().substring(0,7) : 'Sin GPS'}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="verDetalle(${reg._originalIndex})" class="px-2.5 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded font-semibold text-xs">
+                                👁️ Ver Detalle
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function verDetalle(index) {
+            registroSeleccionadoIndex = index;
+            const reg = registrosGlobales[index];
+
+            document.getElementById('modal-entidad').innerText = `Relevamiento: ${reg.entidad}`;
+            
+            let ambitos = [];
+            if(reg.bunker === "Sí" || reg.bunker === true) ambitos.push("Búnker");
+            if(reg.salon === "Sí" || reg.salon === true) ambitos.push("Salón");
+            if(reg.atm === "Sí" || reg.atm === true) ambitos.push("ATM");
+            if(reg.otros) ambitos.push(`Otros: ${reg.otros}`);
+
+            document.getElementById('modal-contenido').innerHTML = `
+                <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-lg border">
+                    <div><span class="font-bold">Fecha:</span> ${reg.fecha}</div>
+                    <div><span class="font-bold">Jerarquía:</span> ${reg.jerarquia}</div>
+                    <div><span class="font-bold">Agente:</span> ${reg.apellido}, ${reg.nombre}</div>
+                    <div><span class="font-bold">Credencial:</span> ${reg.credencial}</div>
+                    <div><span class="font-bold">Lugar Trabajo (Dependencia):</span> ${reg.lugarTrabajo}</div>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-lg border">
+                    <span class="font-bold block mb-1">Puesto Asignado:</span>
+                    <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-medium">${ambitos.join(", ") || "Ninguno"}</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-lg border">
+                    <div><span class="font-bold">Horario Inicio:</span> ${reg.horaInicio} hs</div>
+                    <div><span class="font-bold">Horario Fin:</span> ${reg.horaFin} hs</div>
+                </div>
+                <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <span class="font-bold block text-blue-900 mb-1">Geolocalización GPS:</span>
+                    <div class="font-mono text-xs text-blue-800">
+                        Latitud: ${reg.latitud || 'N/A'}<br>
+                        Longitud: ${reg.longitud || 'N/A'}<br>
+                        Precisión: ${reg.precision || 'N/A'}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('modal-detalle').classList.remove('hidden');
+        }
+
+        function cerrarModal() {
+            document.getElementById('modal-detalle').classList.add('hidden');
+        }
+
+        function exportarCSV() {
+            if(registrosGlobales.length === 0) { alert('No hay datos para exportar.'); return; }
+            let csv = 'Timestamp,Entidad,Fecha,Jerarquia,Apellido,Nombre,Credencial,LugarTrabajo,Bunker,Salon,ATM,Otros,HoraInicio,HoraFin,Latitud,Longitud,Precision\n';
+            registrosGlobales.forEach(r => {
+                csv += `"${r.timestamp}","${r.entidad}","${r.fecha}","${r.jerarquia}","${r.apellido}","${r.nombre}","${r.credencial}","${r.lugarTrabajo}","${r.bunker}","${r.salon}","${r.atm}","${r.otros}","${r.horaInicio}","${r.horaFin}","${r.latitud}","${r.longitud}","${r.precision}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'relevamientos_central.csv';
+            a.click();
+        }
+
+        function initMap() {
+            if(!map) {
+                map = L.map('map').setView([-27.4692, -58.8306], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(map);
+            }
+            if(markersLayer) map.removeLayer(markersLayer);
+            markersLayer = L.layerGroup().addTo(map);
+
+            registrosGlobales.forEach(r => {
+                if(r.latitud && r.longitud) {
+                    const marker = L.marker([parseFloat(r.latitud), parseFloat(r.longitud)]);
+                    marker.bindPopup(`<b>${r.entidad}</b><br>Agente: ${r.apellido}, ${r.nombre}<br>Lugar: ${r.lugarTrabajo}`);
+                    markersLayer.addLayer(marker);
+                }
+            });
+        }
+
+        function generarQR() {
+            const currentUrl = window.location.href;
+            document.getElementById('qr-url-text').innerText = currentUrl;
+            document.getElementById('qrcode').innerHTML = '';
+            new QRCode(document.getElementById('qrcode'), {
+                text: currentUrl,
+                width: 180,
+                height: 180
+            });
+        }
+    </script>
+</body>
+</html> 
